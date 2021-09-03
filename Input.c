@@ -22,10 +22,11 @@ __saveds struct InputEvent *myInput(register __a0 struct InputEvent *ie, registe
     while (cur)
     {
         UBYTE class;
+        BOOL skip = FALSE;
 
         next = cur->ie_NextEvent;
 
-        if ((class = ie->ie_Class) == IECLASS_RAWKEY)
+        if ((class = cur->ie_Class) == IECLASS_RAWKEY)
         {
             WORD key;
             change = TRUE;
@@ -33,11 +34,13 @@ __saveds struct InputEvent *myInput(register __a0 struct InputEvent *ie, registe
             ObtainSemaphore(&ii->ss);
             if ((key = ii->curKey) < KEYS)
             {
-                ii->keys[key++] = ie->ie_Code;
+                ii->keys[key++] = cur->ie_Code;
 
                 ii->curKey = key;
             }
             ReleaseSemaphore(&ii->ss);
+
+            skip = TRUE;
 
             if (prev)
             {
@@ -51,12 +54,12 @@ __saveds struct InputEvent *myInput(register __a0 struct InputEvent *ie, registe
         else if (class == IECLASS_RAWMOUSE)
         {
             change = TRUE;
-            if (ie->ie_Code == IECODE_NOBUTTON)
+            if (cur->ie_Code == IECODE_NOBUTTON)
             {
                 ObtainSemaphore(&ii->ss);
 
-                ii->mouseX += ie->ie_X;
-                ii->mouseY += ie->ie_Y;
+                ii->mouseX += cur->ie_X;
+                ii->mouseY += cur->ie_Y;
 
                 if (ii->mouseX < 0)
                     ii->mouseX = 0;
@@ -80,12 +83,13 @@ __saveds struct InputEvent *myInput(register __a0 struct InputEvent *ie, registe
                 {
                     ii->buttons[button].mouseX = ii->mouseX;
                     ii->buttons[button].mouseY = ii->mouseY;
-                    ii->buttons[button].code = ie->ie_Code;
+                    ii->buttons[button].code = cur->ie_Code;
 
                     ii->curButton++;
                 }
                 ReleaseSemaphore(&ii->ss);
 
+				skip = TRUE;
                 if (prev)
                 {
                     prev->ie_NextEvent = next;
@@ -96,7 +100,10 @@ __saveds struct InputEvent *myInput(register __a0 struct InputEvent *ie, registe
                 }
             }
         }
-        prev = cur;
+        if (!skip)
+        {
+        	prev = cur;
+        }
         cur = next;
     }
 
